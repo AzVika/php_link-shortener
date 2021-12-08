@@ -1,0 +1,24 @@
+.main-bg {
+  background: #fff url("../img/bg-light-4821.png");
+}
+
+.main-block {
+  border: 1px solid #eee;
+  padding: 10px;
+  background-color: ghostwhite;
+}
+
+.info-count {
+  font-size: 6rem;
+  margin-right: 20px;
+  color: #198754;
+}
+
+.main-link {
+  font-size: 4rem;
+  color: #424242;
+}
+
+.navbar {
+  min-height: 66px;
+}
