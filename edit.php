@@ -6,18 +6,20 @@
 	$success = get_session_success();
 	$error = get_session_error();
 
-	if(!isset($_GET['id']) && empty($_GET['id'])) {
+	$get_id = (int)(trim($_GET['id']));
+
+	if(!isset($get_id) && empty($get_id) && $get_id == 0) {
 		header('Location: profile.php');
         die;
 	}
 
 	if(isset($_POST['long_link']) && !empty($_POST['long_link'])) {
-		edit_link($_SESSION['user_id'], $_GET['id'], $_POST['long_link']);
+		edit_link($_SESSION['user_id'], $get_id, $_POST['long_link']);
 		header('Location: profile.php');
         die;
 	}
 
-	$link_info = get_long_link_info($_SESSION['user_id'], $_GET['id']);
+	$link_info = get_long_link_info($_SESSION['user_id'], $get_id);
 
 	include_once "includes/header.php";
 ?>

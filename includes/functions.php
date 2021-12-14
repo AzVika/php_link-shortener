@@ -17,21 +17,18 @@ function db() {
    }
 }
 
-function db_query($sql = '', $exec = false) {
+function db_query($sql = '') {
     if(empty($sql)) return false;
 
-    if($exec) {
-        return db()->exec($sql);
-    } else {
-        return db()->query($sql);
-    }
+    return db()->query($sql);
 }
 
 
 function db_prepared_query($sql, $params = []) {
     if(!is_string($sql)) return;
     $query = db()->prepare($sql);
-    return $query->execute($params); 
+    $query->execute($params);
+    return  $query;
 }
 
 // пример вызова
@@ -55,17 +52,25 @@ function get_views_count() {
 
 function get_link_info($url) {
     if(empty($url)) return [];
-    return db_query("SELECT * FROM `links` WHERE `short_link`='$url';")->fetch();
+    $sql = "SELECT * FROM `links` WHERE `short_link`=:url;";
+    $params = [':url' => $url];
+    return db_prepared_query($sql, $params)->fetch();
 }
 
 function get_user_info($login) {
     if(empty($login)) return [];
-    return db_query("SELECT * FROM `users` WHERE `login`='$login';")->fetch();
+    $sql = "SELECT * FROM `users` WHERE `login`=:login;";
+    $params = [':login' => $login];
+    return db_prepared_query($sql, $params)->fetch();
 }
 
 function update_views($url) {
     if(empty($url)) return false;
-    db_query("UPDATE `links` SET `views` = `views` + 1 WHERE `short_link` = '$url';", true);
+
+    $sql = "UPDATE `links` SET `views` = `views` + 1 WHERE `short_link` = :url;";
+    $params = [':url' => $url];
+    db_prepared_query($sql, $params);
+
 }
 
 
@@ -100,7 +105,10 @@ function check_session_user_id() {
 
 function add_user($login, $pass) {
     $password = password_hash($pass, PASSWORD_DEFAULT);
-    return db_query("INSERT INTO `users` (`id`, `login`, `password`) VALUES (NULL, '$login', '$password');", true);
+
+    $sql = "INSERT INTO `users` (`id`, `login`, `password`) VALUES (NULL, :login, :password);";
+    $params = [':login' => $login, ':password' => $password];
+    return db_prepared_query($sql, $params);
 }
 
 // function clear_data($val){
@@ -223,18 +231,32 @@ function login($auth_data) {
 function get_user_links($user_id) {
     if(empty($user_id) || !filter_var($user_id, FILTER_VALIDATE_INT)) return [];
 
-    return db_query("SELECT * FROM `links` WHERE `user_id` = $user_id;")->fetchAll();
+    $sql = "SELECT * FROM `links` WHERE `user_id` = :user_id;";
+    $params = [':user_id' => $user_id];
+    return db_prepared_query($sql, $params)->fetchAll();
 }
 
 function get_long_link_info($user_id, $link_id) {
     if(empty($user_id) || empty($link_id)) return [];
 
-    return db_query("SELECT `long_link` FROM `links` WHERE `id` = $link_id AND `user_id`= $user_id;")->fetch();
+    $sql = "SELECT `long_link` FROM `links` WHERE `id` = :link_id AND `user_id`= :user_id;";
+    $params = [':link_id' => $link_id, ':user_id' => $user_id];
+    return db_prepared_query($sql, $params)->fetch();
 }
 
 function edit_link($user_id, $link_id, $long_link) {
     if(empty($user_id) || empty($link_id) || empty($long_link)) return false;
-    $edit_success = db_query("UPDATE `links` SET `long_link` = '$long_link' WHERE `id` = '$link_id' AND `user_id` = '$user_id';", true);
+
+    if(!filter_var($long_link, FILTER_VALIDATE_URL)) {
+        $_SESSION['error'] = "Ссылка не была изменена, так как указана некорректно или содержит нелатинские символы!";
+        header('Location: /profile.php');
+        die;
+    }
+
+    $sql = "UPDATE `links` SET `long_link` = :long_link WHERE `id` = :link_id AND `user_id` = :user_id;";
+    $params = [':long_link' => $long_link, ':link_id' => $link_id, ':user_id' => $user_id];
+    $edit_success = db_prepared_query($sql, $params);
+
     if($edit_success == 0) {
         $_SESSION['error'] = "Произошла ошибка. Ссылка не изменилась!";
     } else {
@@ -245,7 +267,15 @@ function edit_link($user_id, $link_id, $long_link) {
 function delete_link($user_id, $link_id) {
     if(empty($user_id) || empty($link_id)) return false;
 
-    return db_query("DELETE FROM `links` WHERE `id` = $link_id AND `user_id`= $user_id;", true);
+    if(!filter_var($link_id, FILTER_VALIDATE_INT) || !filter_var($user_id, FILTER_VALIDATE_INT)) {
+        $_SESSION['error'] = "Ошибка! Ссылка не была найдена!";
+        header('Location: /profile.php');
+        die;
+    }
+
+    $sql = "DELETE FROM `links` WHERE `id` = :link_id AND `user_id`= :user_id;";
+    $params = [':link_id' => $link_id, ':user_id' => $user_id];
+    return db_prepared_query($sql, $params);
 }
 
 function add_link($user_id, $link) {
@@ -259,7 +289,10 @@ function add_link($user_id, $link) {
     $short_link = check_duplicate_short_link();
     if($short_link) {
         unset($_SESSION['link_temp']);
-        return db_query("INSERT INTO `links` (`id`, `user_id`, `long_link`, `short_link`, `views`) VALUES (NULL, '$user_id', '$link', '$short_link', '0');", true);
+
+        $sql = "INSERT INTO `links` (`id`, `user_id`, `long_link`, `short_link`, `views`) VALUES (NULL, :user_id, :link, :short_link, '0');";
+        $params = [':user_id' => $user_id, ':link' => $link, ':short_link' => $short_link];
+        return db_prepared_query($sql, $params);
     }  
 }
 
@@ -270,7 +303,11 @@ function generate_string($size = 6) {
 
 function check_duplicate_short_link() {
     $short_link = generate_string();
-    $count_dupticate_link = db_query("SELECT COUNT(id) FROM `links` WHERE `short_link` = '$short_link';")->fetchColumn();
+
+    $sql = "SELECT COUNT(id) FROM `links` WHERE `short_link` = ':short_link';";
+    $params = [':short_link' => $short_link];
+    $count_dupticate_link = db_prepared_query($sql, $params)->fetchColumn();
+
     if($count_dupticate_link > 0) {
         check_duplicate_short_link();
     } else {

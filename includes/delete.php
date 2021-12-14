@@ -10,6 +10,7 @@ include_once "functions.php";
 check_session_user_id();
 
 $temp = delete_link($_SESSION['user_id'], $_GET['id']);
+
 if($temp == 0) {
     $_SESSION['error'] = "Произошла ошибка, ссылка не удалена!";
     header('Location: /profile.php');
